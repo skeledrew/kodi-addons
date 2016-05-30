@@ -1,0 +1,10 @@
+[16-05-30]
+Requirements:
+- Work like Anime Watcher on Android
+
+Log:
+- [16-05-30]
+-- Trouble installing first addon
+--- Found the entire directory, not just the contents, must be zipped
+-- Trouble importing from another module
+--- Path seems to start at either addon.xml or lib/ level (prob dependent on the extension point)
