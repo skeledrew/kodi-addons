@@ -1,6 +1,13 @@
 [16-05-30]
 Requirements:
 - Work like Anime Watcher on Android
+- GUI
+-- Browse Library
+--- [Anime- Plus, Dub, Crazy, Blog, Freak, Fav, Cartoon Dub]
+--- Context Menu
+---- [Details, Add to Fav]
+-- Favorites
+-- Settings
 
 Log:
 - [16-05-30]
