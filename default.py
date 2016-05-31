@@ -5,11 +5,13 @@ from addon.common.addon import Addon
 from addon.common.net import Net
 from bs4 import BeautifulSoup
 from urllib import quote_plus, unquote_plus
+import json
 
 addon = Addon('plugin.video.skeledrew.anime-watcher', argv=sys.argv)
 net = Net()
-#addon_handle = int(sys.argv[1])
+
 addon_handle = addon.handle
+ueError = '<<UnicodeEncodeError encountered in text>>'
 
 #xbmcplugin.setContent(addon_handle, 'movies')
 
@@ -50,6 +52,10 @@ def fix_uni(word):
         n_word = n_word + char
     return n_word
 
+def get_json(url):
+    # TODO: should probably do some error checking...
+    return json.loads(net.http_GET(url).content)
+
 class main:
     def __init__(self):
         
@@ -73,13 +79,19 @@ class main:
             target_list = addon.queries['list']
             
             if target_list == 'index':
-                lists().aplus_index()
+                lists().aplus_index_api()
+                
+            '''if target_list == 'episodes':
+                lists().aplus_episodes(addon.queries['url'])
+                
+            if target_list == 'sources':
+                lists().aplus_sources(addon.queries['url'])'''
             return
         
         else:
             addon.add_directory({'list': 'index'}, {'title': "Didn't get it..."})
             #addon.add_directory({'list': 'index'}, {'title': target_list})
-            
+        
         test_area()
             
 class dirs:
@@ -113,12 +125,11 @@ class dirs:
         addon.end_of_directory()
       
 class lists:
-    
+    '''
     def aplus_index(self):
         resp = net.http_GET('http://www.animeplus.tv/anime-list')
         soup = BeautifulSoup(resp.content, 'html5lib')
         series_index = soup.find_all('table', class_="series_index")
-        #addon.add_directory({'dir': 'cdub'}, {'title': str(resp.content)})
         
         for alnum in series_index:
             # list of series by alphanum
@@ -127,14 +138,52 @@ class lists:
             for series in series_list:
                 #individual series in each alphanum list
                 name = fix_uni(series.string)
-                url = quote_plus(fix_uni(series['href']))
+                url = quote_plus(series['href'])
                 #addon.show_ok_dialog(url, title=name)
                 
                 try:
-                    addon.add_directory({'series': 'true', 'name': name, 'url': url}, {'title': name})
+                    addon.add_directory({'list': 'episodes', 'name': name, 'url': url}, {'title': name})
                     
                 except UnicodeEncodeError:
-                    addon.add_directory({'series': 'true', 'url': url}, {'title': '<<UnicodeEncodeError encountered in text>>'})
+                    addon.add_directory({'list': 'episodes', 'name': url, 'url': url}, {'title': '<< ' + unquote_plus(url).split('tv/')[1] + ' >>'})
+        addon.end_of_directory()
+        
+    def aplus_episodes(self, url):
+        # NB: Anime info also present on this page
+        resp = net.http_GET(unquote_plus(url))
+        soup = BeautifulSoup(resp.content, 'html5lib')
+        episodes = soup.find_all('div', id="videos")[0].find_all('a')
+        #addon.show_ok_dialog(episodes)
+        #addon.add_directory({'series': True, 'name': 'def', 'url': 'def'}, {'title': str(episodes)})
+        
+        for idx in range(len(episodes)-1, -1, -1):
+            # sort ascending, might be moot
+            episode = episodes[idx]
+            name = fix_uni(episode.string)
+            url = quote_plus(episode['href'])
+            
+            try:
+                addon.add_directory({'list': 'sources', 'name': name, 'url': url}, {'title': name})
+                
+            except UnicodeEncodeError:
+                addon.add_directory({'list': 'sources', 'name': url, 'url': url}, {'title': '<< ' + unquote_plus(url).split('tv/')[1] + ' >>'})
+        addon.end_of_directory()
+        
+    def aplus_sources(self, url):
+        resp = net.http_GET(unquote_plus(url))
+        soup = BeautifulSoup(resp.content, 'html5lib')
+        sources = soup.find_all('div', id="streams")[0].find_all('iframe')
+        #addon.add_directory({'series': True, 'name': 'def', 'url': 'def'}, {'title': str(episodes)})
+        
+        for source in sources:
+            resp = net.http_GET(source['src'])
+        '''
+    def aplus_index_api(self):
+        series_collection = get_json('http://api.animeplus.tv/GetAllShows')
+        #addon.show_ok_dialog(str(series_collection))
+        
+        for series in series_collection:
+            addon.add_directory({'src': 'aplus', 'list': 'episodes', 'media': 'shows', 'seriesid': series['id']}, {'title': series['name'].encode('UTF-8'), 'plot': series['description']}, img='http://www.animeplus.tv/images/series/big/'+str(series["id"])+'.jpg')
         addon.end_of_directory()
         
 main()

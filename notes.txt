@@ -19,3 +19,10 @@ Log:
 -- Got a UnicodeEncodeError for several series  names
 --- Unable to fix currently
 --- Handled via replacement text
+-- Anime Plus has an API! Let's try it!!
+--- http://api.animeplus.tv/Get[All|New|Popular][Movies|Shows]
+--- Format
+---- API returns data in JSON format
+---- List of dicts
+---- Dicts contain id (number string), name (of series), description, status (CMP for completed, ONG for ongoing), released (yyyy-mm-dd string), rating (int) and genres (list of strings)
+-- May want to cache this info for future calls, with time till refresh stamp
