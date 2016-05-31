@@ -15,3 +15,7 @@ Log:
 --- Found the entire directory, not just the contents, must be zipped
 -- Trouble importing from another module
 --- Path seems to start at either addon.xml or lib/ level (prob dependent on the extension point)
+- [16-05-31]
+-- Got a UnicodeEncodeError for several series  names
+--- Unable to fix currently
+--- Handled via replacement text

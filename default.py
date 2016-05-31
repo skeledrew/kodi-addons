@@ -3,8 +3,11 @@ import xbmcgui
 import xbmcplugin
 from addon.common.addon import Addon
 from addon.common.net import Net
+from bs4 import BeautifulSoup
+from urllib import quote_plus, unquote_plus
 
 addon = Addon('plugin.video.skeledrew.anime-watcher', argv=sys.argv)
+net = Net()
 #addon_handle = int(sys.argv[1])
 addon_handle = addon.handle
 
@@ -28,7 +31,25 @@ def test_area():
 
     #xbmcplugin.endOfDirectory(addon_handle)
     addon.end_of_directory()
+
+def uni_kill(char):
+    # replace unicode characters
     
+    if ord(char) > 127:
+        return 'u[' + str(ord(char)) + ']'
+    return char
+
+def fix_uni(word):
+    n_word = ''
+    
+    if not word:
+        return ''
+    
+    for char in word:
+        uni_kill(char)
+        n_word = n_word + char
+    return n_word
+
 class main:
     def __init__(self):
         
@@ -36,7 +57,8 @@ class main:
             # default query
             dirs().root()
         
-        try:
+        if 'dir' in addon.queries:
+            # navigate static local dirs
             target_dir = addon.queries['dir']
             
             if target_dir == 'lib':
@@ -44,10 +66,20 @@ class main:
                 
             if target_dir == 'aplus':
                 dirs().aplus()
+            return
         
-        except:
-            pass
+        if 'list' in addon.queries:
+            # navigate dynamic site lists
+            target_list = addon.queries['list']
+            
+            if target_list == 'index':
+                lists().aplus_index()
+            return
         
+        else:
+            addon.add_directory({'list': 'index'}, {'title': "Didn't get it..."})
+            #addon.add_directory({'list': 'index'}, {'title': target_list})
+            
         test_area()
             
 class dirs:
@@ -69,15 +101,40 @@ class dirs:
         addon.end_of_directory()
         
     def aplus(self):
-        addon.add_directory({'list': 'index'}, {'title': 'Index'})
-        addon.add_directory({'list': 'pop'}, {'title': 'Popular'})
-        addon.add_directory({'list': 'new'}, {'title': 'New'})
-        addon.add_directory({'list': 'recent'}, {'title': 'Recent'})
-        addon.add_directory({'list': 'ongoing'}, {'title': 'Ongoing'})
-        addon.add_directory({'list': 'complete'}, {'title': 'Completed'})
-        addon.add_directory({'list': 'genres'}, {'title': 'Genres'})
-        addon.add_directory({'list': 'recrel'}, {'title': 'Recent Releases'})
-        addon.add_directory({'list': 'recadd'}, {'title': 'Recently Added Series'})
+        addon.add_directory({'src': 'aplus', 'list': 'index'}, {'title': 'Index'})
+        addon.add_directory({'src': 'aplus', 'list': 'pop'}, {'title': 'Popular'})
+        addon.add_directory({'src': 'aplus', 'list': 'new'}, {'title': 'New'})
+        addon.add_directory({'src': 'aplus', 'list': 'recent'}, {'title': 'Recent'})
+        addon.add_directory({'src': 'aplus', 'list': 'ongoing'}, {'title': 'Ongoing'})
+        addon.add_directory({'src': 'aplus', 'list': 'complete'}, {'title': 'Completed'})
+        addon.add_directory({'src': 'aplus', 'list': 'genres'}, {'title': 'Genres'})
+        addon.add_directory({'src': 'aplus', 'list': 'recrel'}, {'title': 'Recent Releases'})
+        addon.add_directory({'src': 'aplus', 'list': 'recadd'}, {'title': 'Recently Added Series'})
+        addon.end_of_directory()
+      
+class lists:
+    
+    def aplus_index(self):
+        resp = net.http_GET('http://www.animeplus.tv/anime-list')
+        soup = BeautifulSoup(resp.content, 'html5lib')
+        series_index = soup.find_all('table', class_="series_index")
+        #addon.add_directory({'dir': 'cdub'}, {'title': str(resp.content)})
+        
+        for alnum in series_index:
+            # list of series by alphanum
+            series_list = alnum.find_all('a')
+            
+            for series in series_list:
+                #individual series in each alphanum list
+                name = fix_uni(series.string)
+                url = quote_plus(fix_uni(series['href']))
+                #addon.show_ok_dialog(url, title=name)
+                
+                try:
+                    addon.add_directory({'series': 'true', 'name': name, 'url': url}, {'title': name})
+                    
+                except UnicodeEncodeError:
+                    addon.add_directory({'series': 'true', 'url': url}, {'title': '<<UnicodeEncodeError encountered in text>>'})
         addon.end_of_directory()
         
 main()
