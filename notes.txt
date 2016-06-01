@@ -22,7 +22,14 @@ Log:
 -- Anime Plus has an API! Let's try it!!
 --- http://api.animeplus.tv/Get[All|New|Popular][Movies|Shows]
 --- Format
----- API returns data in JSON format
+---- Collection API returns data in JSON format
 ---- List of dicts
 ---- Dicts contain id (number string), name (of series), description, status (CMP for completed, ONG for ongoing), released (yyyy-mm-dd string), rating (int) and genres (list of strings)
+--- http://api.animeplus.tv/GetDetails/[#]
+---- Episodes API takes the series id # and returns a dict
+---- Dict contains episode (list of dicts) and name (of series)
+---- List of dicts contain date (added?), id (number string, episode) and name (of episode)
+--- http://api.animeplus.tv/GetVideos/[#]?direct
+---- Sources API takes the episode id # and returns a list of list(s) of dict(s)
+---- Dicts contain link, source, quality, sub and filename
 -- May want to cache this info for future calls, with time till refresh stamp

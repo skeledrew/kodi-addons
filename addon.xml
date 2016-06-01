@@ -10,7 +10,7 @@
   <extension point="xbmc.addon.metadata">
     <summary lang="en_gb">Watch your favorite Anime.</summary>
     <description lang="en_gb">Watch you favorite Anime, adopted from the now defunct Android app Anime Watcher.</description>
-    <disclaimer lang="en_gb">The author does not host or distribute any of the content displayed by this addon. The author does not have any affiliation with the content provider.</disclaimer>
+    <disclaimer lang="en_gb">The author does not host or distribute any of the content displayed by this add-on. The author does not have any affiliation with the content provider. This add-on is provided "AS IS", and is intended for educational purposes only.</disclaimer>
     <language></language>
     <platform>all</platform>
     <license></license>

@@ -6,9 +6,11 @@ from addon.common.net import Net
 from bs4 import BeautifulSoup
 from urllib import quote_plus, unquote_plus
 import json
+from xbmc import Player
 
 addon = Addon('plugin.video.skeledrew.anime-watcher', argv=sys.argv)
 net = Net()
+kodi_player = Player()
 
 addon_handle = addon.handle
 ueError = '<<UnicodeEncodeError encountered in text>>'
@@ -52,9 +54,20 @@ def fix_uni(word):
         n_word = n_word + char
     return n_word
 
-def get_json(url):
+def get_json(url, src):
     # TODO: should probably do some error checking...
-    return json.loads(net.http_GET(url).content)
+    headers = {}
+    
+    if src == 'aplus':
+        # code from animego
+        headers['User-Agent'] = 'okhttp/2.3.0'
+        headers['Host']='api.animeplus.tv'
+        headers['App-LandingPage']='http://www.mobi24.net/anime.html'
+        headers['App-Name']='#Animania'
+        headers['App-Version']='7.5'
+        headers['Accept-Encoding'] = 'gzip'
+        headers['Connection'] = 'keep-alive'
+    return json.loads(net.http_GET(url, headers=headers).content.encode('UTF-8'))
 
 class main:
     def __init__(self):
@@ -81,11 +94,14 @@ class main:
             if target_list == 'index':
                 lists().aplus_index_api()
                 
-            '''if target_list == 'episodes':
-                lists().aplus_episodes(addon.queries['url'])
+            if target_list == 'episodes':
+                lists().aplus_episodes_api(addon.queries['seriesid'], addon.queries['name'])
                 
             if target_list == 'sources':
-                lists().aplus_sources(addon.queries['url'])'''
+                lists().aplus_sources_api(addon.queries['episodeid'], addon.queries['name'])
+                
+            if target_list == 'play':
+                kodi_player.play(addon.queries['url'])
             return
         
         else:
@@ -179,11 +195,86 @@ class lists:
             resp = net.http_GET(source['src'])
         '''
     def aplus_index_api(self):
-        series_collection = get_json('http://api.animeplus.tv/GetAllShows')
-        #addon.show_ok_dialog(str(series_collection))
+        series_collection = get_json('http://api.animeplus.tv/GetAllShows', 'aplus')
         
         for series in series_collection:
-            addon.add_directory({'src': 'aplus', 'list': 'episodes', 'media': 'shows', 'seriesid': series['id']}, {'title': series['name'].encode('UTF-8'), 'plot': series['description']}, img='http://www.animeplus.tv/images/series/big/'+str(series["id"])+'.jpg')
+            addon.add_directory({'src': 'aplus', 'list': 'episodes', 'name': series['name'], 'seriesid': series['id']}, {'title': series['name'].encode('UTF-8'), 'plot': series['description']}, img='http://www.animeplus.tv/images/series/big/'+str(series["id"])+'.jpg')
         addon.end_of_directory()
         
+    def aplus_episodes_api(self, seriesid, name):
+        episodes = get_json('http://api.animeplus.tv/GetDetails/' + seriesid, 'aplus')
+        
+        for episode in episodes['episode']:
+            addon.add_directory({'src': 'aplus', 'list': 'sources', 'name': episode['name'], 'episodeid': episode['id']}, {'title': episode['name']})
+        addon.end_of_directory()
+        
+    def aplus_sources_api(self, episodeid, name):
+        sources = get_json('http://api.animeplus.tv/GetVideos/' + episodeid + '?direct', 'aplus')
+        mctr = 1
+        play_url = {}
+        
+        for vid_group in sources:
+            
+            for idx in range(len(vid_group)):
+                mirror_name = '' # not declared in source, but it still works...?
+                
+                if vid_group[idx]['source'] == 'storage':
+                    mirror_name = vid_group[idx]['link'].split('/')[2]
+                    
+                else:
+                    mirror_name = vid_group[idx]['source']
+                addon.add_video_item({'list': 'play', 'url': vid_group[idx]['link']}, {'title': 'Part ' + str(mctr) + ', Mirror ' + str(idx+1) + ' (' + mirror_name + ')'})
+                #addon.show_ok_dialog(str(mirror_name))
+                
+                if play_url.has_key(idx):
+                    play_url[idx] = play_url[idx] + '|' + vid_group[idx]['link']
+                    
+                else:
+                    play_url[idx] = vid_group[idx]['link']
+            mctr = mctr + 1
+            
+        for key in play_url:
+            
+            if play_url[key].find('|') > -1:
+                addon.add_video_item({}, {'title': "-----Play all mirror " + str(key+1) + " parts ------"})
+        addon.end_of_directory()
+        
+# ripped from animego
+def PLAYLIST_VIDEOLINKS(vidlist,name):
+        ok=True
+        playList = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+        playList.clear()
+        #time.sleep(2)
+        links = vidlist.split('|')
+        pDialog = xbmcgui.DialogProgress()
+        ret = pDialog.create('Loading playlist...')
+        totalLinks = len(links)-1
+        loadedLinks = 0
+        remaining_display = 'Videos loaded :: [B]'+str(loadedLinks)+' / '+str(totalLinks)+'[/B] into XBMC player playlist.'
+        pDialog.update(0,'Please wait for the process to retrieve video link.',remaining_display)
+        
+        for videoLink in links:
+                #CreateList(ParseVideoLink(videoLink,name,name+str(loadedLinks + 1)))
+                CreateList(videoLink)
+                loadedLinks = loadedLinks + 1
+                percent = (loadedLinks * 100)/totalLinks
+                #print percent
+                remaining_display = 'Videos loaded :: [B]'+str(loadedLinks)+' / '+str(totalLinks)+'[/B] into XBMC player playlist.'
+                pDialog.update(percent,'Please wait for the process to retrieve video link.',remaining_display)
+                if (pDialog.iscanceled()):
+                        return False   
+        xbmcPlayer = xbmc.Player()
+        xbmcPlayer.play(playList)
+        if not xbmcPlayer.isPlayingVideo():
+                d = xbmcgui.Dialog()
+                d.ok('videourl: ' + str(playList), 'One or more of the playlist items','Check links individually.')
+        return ok
+
+def playVideo(url,name,movieinfo):
+        #vidurl=ParseVideoLink(url,name,movieinfo);
+        vidurl=url;
+        xbmcPlayer = xbmc.Player()
+        xbmcPlayer.play(vidurl)
+# end rip
+
 main()
