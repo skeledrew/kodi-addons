@@ -34,3 +34,6 @@ Log:
 ---- Dicts contain link, source, quality, sub and filename
 -- May want to cache this info for future calls, with time till refresh stamp
 -- Alpha version achieved!
+- [16-06-01]
+-- Unable to find why playing fails, when functionality is pretty much the same
+--- Will try copying more of animego to check

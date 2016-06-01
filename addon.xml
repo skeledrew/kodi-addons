@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.skeledrew.anime-watcher" name="Anime Watcher" version="0.1.0" provider-name="skeledrew">
+<addon id="plugin.video.skeledrew.anime-watcher" name="Anime Watcher" version="0.1.1" provider-name="skeledrew">
   <requires>
     <import addon="xbmc.python" version="2.1.0"/>
     <import addon="script.module.addon.common" version="2.0.0"/>
+    <import addon="script.module.beautifulsoup4" version="4.3.2"/>
+    <import addon="script.module.urlresolver" version="0.0.1"/>
+    <import addon="script.module.simplejson"/>
   </requires>
   <extension point="xbmc.python.pluginsource" library="default.py">
     <provides>video</provides>

@@ -1,11 +1,11 @@
 import sys
-import xbmcgui
-import xbmcplugin
-from addon.common.addon import Addon
-from addon.common.net import Net
-from bs4 import BeautifulSoup
-from urllib import quote_plus, unquote_plus
-import json
+import xbmcgui   # deprecated
+import xbmcplugin   # deprecated
+from addon.common.addon import Addon   # provided by: script.module.addon.common
+from addon.common.net import Net   # provided by: script.module.addon.common
+from bs4 import BeautifulSoup   # provided by: script.module.beautifulsoup4
+from urllib import quote_plus, unquote_plus   # provided by: script.module.urlresolver
+import json   # provided by: script.module.somplejson
 from xbmc import Player
 
 addon = Addon('plugin.video.skeledrew.anime-watcher', argv=sys.argv)
@@ -102,6 +102,9 @@ class main:
                 
             if target_list == 'play':
                 kodi_player.play(addon.queries['url'])
+                
+            if target_list == 'mplay':
+                pass
             return
         
         else:
@@ -236,7 +239,7 @@ class lists:
         for key in play_url:
             
             if play_url[key].find('|') > -1:
-                addon.add_video_item({}, {'title': "-----Play all mirror " + str(key+1) + " parts ------"})
+                addon.add_video_item({'list': 'mplay', 'urls': play_url[key]}, {'title': "-----Play all mirror " + str(key+1) + " parts ------"})
         addon.end_of_directory()
         
 # ripped from animego
