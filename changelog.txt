@@ -1,6 +1,11 @@
 ------------------------
+Anime Watcher v0.1.0 (16-05-31)
+------------------------
+- Initial release
+
+------------------------
 Anime Watcher v0.0.1 (16-05-30)
 ------------------------
 
 - Started add-on 
- 
+- Implemented Anime Plus index 

@@ -2,7 +2,7 @@
 Requirements:
 - Work like Anime Watcher on Android
 - GUI
--- Browse Library
+-- Library
 --- [Anime- Plus, Dub, Crazy, Blog, Freak, Fav, Cartoon Dub]
 --- Context Menu
 ---- [Details, Add to Fav]
@@ -33,3 +33,4 @@ Log:
 ---- Sources API takes the episode id # and returns a list of list(s) of dict(s)
 ---- Dicts contain link, source, quality, sub and filename
 -- May want to cache this info for future calls, with time till refresh stamp
+-- Alpha version achieved!
