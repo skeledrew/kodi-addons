@@ -16,7 +16,7 @@ Log:
 -- Trouble importing from another module
 --- Path seems to start at either addon.xml or lib/ level (prob dependent on the extension point)
 - [16-05-31]
--- Got a UnicodeEncodeError for several series  names
+-- Got a UnicodeEncodeError for several series names
 --- Unable to fix currently
 --- Handled via replacement text
 -- Anime Plus has an API! Let's try it!!
@@ -37,3 +37,7 @@ Log:
 - [16-06-01]
 -- Unable to find why playing fails, when functionality is pretty much the same
 --- Will try copying more of animego to check
+-- Genre listing fragments in some areas due to genre name differences
+-- Parsing the recents from the site itself is prob dangerous...
+-- Movies show up in Popular and possibly other categories; they aren't handled here
+-- There's a really weird link in web RAS category with javascript and stuff; ignoring

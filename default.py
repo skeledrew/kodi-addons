@@ -92,7 +92,33 @@ class main:
             target_list = addon.queries['list']
             
             if target_list == 'index':
-                lists().aplus_index_api()
+                lists().aplus_series_api()
+                
+            if target_list == 'pop':
+                lists().aplus_series_api({'scope': 'Popular'})
+                
+            if target_list == 'new':
+                lists().aplus_series_api({'scope': 'New'})
+                
+            #if target_list == 'recent':
+                
+            if target_list == 'ongoing':
+                lists().aplus_series_api({'status': 'ONG'})
+                
+            if target_list == 'complete':
+                lists().aplus_series_api({'status': 'CMP'})
+                
+            if target_list == 'genres':
+                lists().aplus_series_api({'genres': []})
+                
+            if target_list == 'genre':
+                lists().aplus_series_api({'genre': addon.queries['genre']})
+            
+            if target_list == 'recepi':
+                lists().aplus_rec_epi_web()
+                
+            if target_list == 'recent':
+                lists().aplus_rec_ser_web()
                 
             if target_list == 'episodes':
                 lists().aplus_episodes_api(addon.queries['seriesid'], addon.queries['name'])
@@ -104,7 +130,32 @@ class main:
                 kodi_player.play(addon.queries['url'])
                 
             if target_list == 'mplay':
-                pass
+                # NB: untested code; not triggered thus far by any sources
+                links = addon.queries['urls'].split('|')
+                total_links = len(links)-1
+                loaded_links = 0
+                play_list = addon.get_video_playlist(new=True)
+                prog_dlg = xbmcgui.DialogProgress()
+                prog_dlg.create('Loading playlist...')
+                remaining_display = 'Videos loaded :: [B]'+str(loadedLinks)+' / '+str(totalLinks)+'[/B] into XBMC player playlist.'
+                prog_dlg.update(0,'Please wait for the process to retrieve the video links.',remaining_display)
+                
+                for link in links:
+                    CreateList(link)
+                    loaded_links = loaded_links + 1
+                    percent = loaded_links / total_links * 100
+                    remaining_display = 'Videos loaded :: [B]'+str(loadedLinks)+' / '+str(totalLinks)+'[/B] into XBMC player playlist.'
+                    prog_dlg.update(percent,'Please wait for the process to retrieve video link.',remaining_display)
+                    
+                    if prog_dlg.iscanceled():
+                        return False
+                kodi_player.play(play_list)
+                
+                if not kodi_player.isPlayingVideo():
+                    addon.show_ok_dialog(['One or more of the playlist items','Check links individually.'], 'VideoUrl: ' + str(play_list))
+                return True
+                    
+            addon.end_of_directory()
             return
         
         else:
@@ -135,38 +186,84 @@ class dirs:
         addon.add_directory({'src': 'aplus', 'list': 'index'}, {'title': 'Index'})
         addon.add_directory({'src': 'aplus', 'list': 'pop'}, {'title': 'Popular'})
         addon.add_directory({'src': 'aplus', 'list': 'new'}, {'title': 'New'})
-        addon.add_directory({'src': 'aplus', 'list': 'recent'}, {'title': 'Recent'})
+        #addon.add_directory({'src': 'aplus', 'list': 'recent'}, {'title': 'Recent'})
         addon.add_directory({'src': 'aplus', 'list': 'ongoing'}, {'title': 'Ongoing'})
         addon.add_directory({'src': 'aplus', 'list': 'complete'}, {'title': 'Completed'})
         addon.add_directory({'src': 'aplus', 'list': 'genres'}, {'title': 'Genres'})
-        addon.add_directory({'src': 'aplus', 'list': 'recrel'}, {'title': 'Recent Releases'})
-        addon.add_directory({'src': 'aplus', 'list': 'recadd'}, {'title': 'Recently Added Series'})
+        addon.add_directory({'src': 'aplus', 'list': 'recepi'}, {'title': 'Recent Releases'})
+        addon.add_directory({'src': 'aplus', 'list': 'recent'}, {'title': 'Recently Added Series'})
         addon.end_of_directory()
       
 class lists:
-    '''
-    def aplus_index(self):
-        resp = net.http_GET('http://www.animeplus.tv/anime-list')
+    
+    def aplus_rec_epi_web(self):
+        resp = net.http_GET('http://www.animeplus.tv/')
         soup = BeautifulSoup(resp.content, 'html5lib')
-        series_index = soup.find_all('table', class_="series_index")
+        recent_releases = soup.find_all('div', id="rr")[0].find_all('a')
+        series_collection = get_json('http://api.animeplus.tv/GetAllShows', 'aplus')
         
-        for alnum in series_index:
-            # list of series by alphanum
-            series_list = alnum.find_all('a')
+        for episode in recent_releases:
+            epi_name = episode.string.encode('UTF-8')   # NB: this could break at anytime...
             
-            for series in series_list:
-                #individual series in each alphanum list
-                name = fix_uni(series.string)
-                url = quote_plus(series['href'])
-                #addon.show_ok_dialog(url, title=name)
+            if ' Episode ' in epi_name:
+                series_name = epi_name.split(' Episode ')[0]
+                epi_num = epi_name.split(' Episode ')[1]
                 
-                try:
-                    addon.add_directory({'list': 'episodes', 'name': name, 'url': url}, {'title': name})
+            elif ' OVA ' in epi_name:
+                series_name = epi_name.split(' OVA ')[0]
+                epi_num = epi_name.split(' OVA ')[1]
+                
+            else:
+                err_msg = 'Unhandled name format encountered: ' + epi_name
+                addon.show_small_popup(msg=err_msg, title='See log for more')
+                addon.log_error(err_msg)
+                addon.add_directory({}, {'title': err_msg})   # place holder
+                continue
+                
+            
+            for series in series_collection:
+                
+                if series['name'] == series_name:
+                    seriesid = series['id']
+                    episodes = get_json('http://api.animeplus.tv/GetDetails/' + seriesid, 'aplus')['episode']
                     
-                except UnicodeEncodeError:
-                    addon.add_directory({'list': 'episodes', 'name': url, 'url': url}, {'title': '<< ' + unquote_plus(url).split('tv/')[1] + ' >>'})
-        addon.end_of_directory()
+                    for idx in range(len(episodes)-1, -1, -1):
+                        # index backwards for speed and accuracy
+                        
+                        if epi_num in episodes[idx]['name']:
+                            episode = episodes[idx]
+                            addon.add_directory({'src': 'aplus', 'list': 'sources', 'name': episode['name'], 'episodeid': episode['id']}, {'title': episode['name']}, img='http://www.animeplus.tv/images/series/big/' + str(seriesid)+'.jpg')
+                            
+                        ''' NB: doesn't work properly
+                        elif idx == 0 and not epi_num in episodes[idx]['name']:
+                            # end of the list, didn't find a match
+                            addon.add_directory({}, {'title': 'Error: unable to find ' + series_name + ' in the series collection'})'''   # place holder
+                        
+    
+    def aplus_rec_ser_web(self):
+        resp = net.http_GET('http://www.animeplus.tv/')
+        soup = BeautifulSoup(resp.content, 'html5lib')
+        recent_series = soup.find_all('div', id="rs")[0].find_all('a')
+        series_collection = get_json('http://api.animeplus.tv/GetAllShows', 'aplus')
         
+        for name in recent_series:
+            
+            try:
+                series_name = name.string.encode('UTF-8')
+                print 'Series name is ' + str(series_name)
+                
+                for series in series_collection:
+                    
+                    if series['name'] == series_name:
+                        addon.add_directory({'src': 'aplus', 'list': 'episodes', 'name': series['name'], 'seriesid': series['id']}, {'title': series['name'].encode('UTF-8'), 'plot': series['description']}, img='http://www.animeplus.tv/images/series/big/' + str(series["id"])+'.jpg')
+                        
+            except:
+                err_msg = 'Unhandled error involving: ' + str(name)
+                addon.show_small_popup(msg=err_msg, title='See log for more')
+                addon.log_error(err_msg)
+                addon.add_directory({}, {'title': err_msg})   # place holder
+        
+    '''
     def aplus_episodes(self, url):
         # NB: Anime info also present on this page
         resp = net.http_GET(unquote_plus(url))
@@ -197,18 +294,71 @@ class lists:
         for source in sources:
             resp = net.http_GET(source['src'])
         '''
-    def aplus_index_api(self):
-        series_collection = get_json('http://api.animeplus.tv/GetAllShows', 'aplus')
+    
+    def aplus_series_api(self, filters={}):
+        '''series_collection = get_json(url, 'aplus')
+        
+        if not status == '':
+            new_coll = []
+            
+            for series in series_collection:
+                
+                if series['status'] == status:
+                    new_coll.append(series)
+            series_collection = new_coll
+            print str(series_collection)'''
+        
+        ### NB: 'scope' must be All, Popular or New and 'mtype' must be Shows or Movies; weird things may happen otherwise
+        if not 'scope' in filters:
+            filters['scope'] = 'All'
+            
+        if not 'mtype' in filters:
+            filters['mtype'] = 'Shows'
+        url = 'http://api.animeplus.tv/Get' + filters['scope'] + filters['mtype']
+        series_collection = get_json(url, 'aplus')
+        
+        for key in filters:
+            
+            if not (key == 'scope' or key == 'mtype'):
+                filt = filters[key]
+                
+                new_coll = []
+                
+                if key == 'genres':
+                    self.aplus_genres(series_collection)
+                    return
+                
+                if not key == 'genres':   # else: doesn't work for some reason
+                    
+                    for series in series_collection:
+                        print 'Current key is ' + key
+                        #print series[key], filters[key], series['genres']
+                        if (key in series and series[key] == filters[key]) or (key == 'genre' and filters[key] in series['genres']):
+                            new_coll.append(series)
+                series_collection = new_coll
         
         for series in series_collection:
-            addon.add_directory({'src': 'aplus', 'list': 'episodes', 'name': series['name'], 'seriesid': series['id']}, {'title': series['name'].encode('UTF-8'), 'plot': series['description']}, img='http://www.animeplus.tv/images/series/big/'+str(series["id"])+'.jpg')
-        addon.end_of_directory()
+            addon.add_directory({'src': 'aplus', 'list': 'episodes', 'name': series['name'], 'seriesid': series['id']}, {'title': series['name'].encode('UTF-8'), 'plot': series['description']}, img='http://www.animeplus.tv/images/series/big/' + str(series["id"])+'.jpg')
+    
+    def aplus_genres(self, coll):
+        genres = []
         
+        for series in coll:
+            
+            for genre in series['genres']:
+                
+                if not genre in genres:
+                    genres.append(genre)
+        genres.sort()
+        
+        for genre in genres:
+            addon.add_directory({'src': 'aplus', 'list': 'genre', 'genre': genre}, {'title': genre})
+    
     def aplus_episodes_api(self, seriesid, name):
         episodes = get_json('http://api.animeplus.tv/GetDetails/' + seriesid, 'aplus')
         
         for episode in episodes['episode']:
-            addon.add_directory({'src': 'aplus', 'list': 'sources', 'name': episode['name'], 'episodeid': episode['id']}, {'title': episode['name']})
+            addon.add_directory({'src': 'aplus', 'list': 'sources', 'name': episode['name'], 'episodeid': episode['id']}, {'title': episode['name'].encode('UTF-8')})
         addon.end_of_directory()
         
     def aplus_sources_api(self, episodeid, name):
@@ -242,42 +392,4 @@ class lists:
                 addon.add_video_item({'list': 'mplay', 'urls': play_url[key]}, {'title': "-----Play all mirror " + str(key+1) + " parts ------"})
         addon.end_of_directory()
         
-# ripped from animego
-def PLAYLIST_VIDEOLINKS(vidlist,name):
-        ok=True
-        playList = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
-        playList.clear()
-        #time.sleep(2)
-        links = vidlist.split('|')
-        pDialog = xbmcgui.DialogProgress()
-        ret = pDialog.create('Loading playlist...')
-        totalLinks = len(links)-1
-        loadedLinks = 0
-        remaining_display = 'Videos loaded :: [B]'+str(loadedLinks)+' / '+str(totalLinks)+'[/B] into XBMC player playlist.'
-        pDialog.update(0,'Please wait for the process to retrieve video link.',remaining_display)
-        
-        for videoLink in links:
-                #CreateList(ParseVideoLink(videoLink,name,name+str(loadedLinks + 1)))
-                CreateList(videoLink)
-                loadedLinks = loadedLinks + 1
-                percent = (loadedLinks * 100)/totalLinks
-                #print percent
-                remaining_display = 'Videos loaded :: [B]'+str(loadedLinks)+' / '+str(totalLinks)+'[/B] into XBMC player playlist.'
-                pDialog.update(percent,'Please wait for the process to retrieve video link.',remaining_display)
-                if (pDialog.iscanceled()):
-                        return False   
-        xbmcPlayer = xbmc.Player()
-        xbmcPlayer.play(playList)
-        if not xbmcPlayer.isPlayingVideo():
-                d = xbmcgui.Dialog()
-                d.ok('videourl: ' + str(playList), 'One or more of the playlist items','Check links individually.')
-        return ok
-
-def playVideo(url,name,movieinfo):
-        #vidurl=ParseVideoLink(url,name,movieinfo);
-        vidurl=url;
-        xbmcPlayer = xbmc.Player()
-        xbmcPlayer.play(vidurl)
-# end rip
-
 main()
