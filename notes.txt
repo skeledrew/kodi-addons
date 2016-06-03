@@ -41,3 +41,13 @@ Log:
 -- Parsing the recents from the site itself is prob dangerous...
 -- Movies show up in Popular and possibly other categories; they aren't handled here
 -- There's a really weird link in web RAS category with javascript and stuff; ignoring
+-- Changes to addon.xml may only load after Kodi restarts
+--- Does this mean that an addon can be installed by copying the folder to the relevant path?
+- [16-06-02]
+-- Videos now playing! Thanks to addLink() rip
+--- Something was wrong with how the video links are created; gotta look into that...
+-- Found that there is a small issue either in the addons.common module, or the way I'm using it
+--- Ripped and modified the relevant method from the module
+
+Links:
+- TC FB thread - https://www.facebook.com/groups/319257644759106/permalink/1250058758345652/

@@ -1,4 +1,9 @@
 ------------------------
+Anime Watcher v0.2.1 (16-06-02)
+------------------------
+- Fixed videos not playing
+
+------------------------
 Anime Watcher v0.2.0 (16-06-01)
 ------------------------
 - Added missing module imports to addon.xml
@@ -12,6 +17,5 @@ Anime Watcher v0.1.0 (16-05-31)
 ------------------------
 Anime Watcher v0.0.1 (16-05-30)
 ------------------------
-
 - Started add-on 
 - Implemented Anime Plus index 

@@ -127,6 +127,7 @@ class main:
                 lists().aplus_sources_api(addon.queries['episodeid'], addon.queries['name'])
                 
             if target_list == 'play':
+                # TODO: Implement other play options later
                 kodi_player.play(addon.queries['url'])
                 
             if target_list == 'mplay':
@@ -376,8 +377,7 @@ class lists:
                     
                 else:
                     mirror_name = vid_group[idx]['source']
-                addon.add_video_item({'list': 'play', 'url': vid_group[idx]['link']}, {'title': 'Part ' + str(mctr) + ', Mirror ' + str(idx+1) + ' (' + mirror_name + ')'})
-                #addon.show_ok_dialog(str(mirror_name))
+                add_video_item({'list': 'play', 'name': name, 'url': vid_group[idx]['link']}, {'title': 'Part ' + str(mctr) + ', Mirror ' + str(idx+1) + ' (' + mirror_name + ')'})
                 
                 if play_url.has_key(idx):
                     play_url[idx] = play_url[idx] + '|' + vid_group[idx]['link']
@@ -389,7 +389,105 @@ class lists:
         for key in play_url:
             
             if play_url[key].find('|') > -1:
+                # TODO: This most likely needs fixing...
                 addon.add_video_item({'list': 'mplay', 'urls': play_url[key]}, {'title': "-----Play all mirror " + str(key+1) + " parts ------"})
         addon.end_of_directory()
+
+## ripped from animego
+def CreateList(videoLink):
+        liz = xbmcgui.ListItem('[B]PLAY VIDEO[/B]', thumbnailImage="")
+        playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
+        playlist.add(url=videoLink, listitem=liz)
+
+## end animego rip
+
+## ripped from addon.common
+def add_video_item(queries, infolabels, properties=None, contextmenu_items='', context_replace=False, img='', fanart='', resolved=False, total_items=0, playlist=False, item_type='video', is_folder=False):
+        '''
+        Adds an item to the list of entries to be displayed in XBMC or to a 
+        playlist.
         
+        Use this method when you want users to be able to select this item to
+        start playback of a media file. ``queries`` is a dict that will be sent 
+        back to the addon when this item is selected::
+        
+            add_item({'host': 'youtube.com', 'media_id': 'ABC123XYZ'}, 
+                     {'title': 'A youtube vid'})
+                     
+        will add a link to::
+        
+            plugin://your.plugin.id/?host=youtube.com&media_id=ABC123XYZ
+        
+        .. seealso::
+        
+            :meth:`add_music_item`, :meth:`add_video_item`, 
+            :meth:`add_directory`
+            
+        Args:
+            queries (dict): A set of keys/values to be sent to the addon when 
+            the user selects this item.
+            
+            infolabels (dict): A dictionary of information about this media 
+            (see the `XBMC Wiki InfoLabels entry 
+            <http://wiki.xbmc.org/?title=InfoLabels>`_).
+            
+        Kwargs:
+            
+            properties (dict): A dictionary of properties that can be set on a list item
+            (see the `XBMC Wiki InfoLabels entry and locate Property() elements
+            <http://wiki.xbmc.org/?title=InfoLabels>`_).
+            
+            contextmenu_items (list): A list of contextmenu items
+            
+            context_replace (bool): To replace the xbmc default contextmenu items
+                    
+            img (str): A URL to an image file to be used as an icon for this
+            entry.
+            
+            fanart (str): A URL to a fanart image for this entry.
+            
+            resolved (str): If not empty, ``queries`` will be ignored and 
+            instead the added item will be the exact contentes of ``resolved``.
+            
+            total_items (int): Total number of items to be added in this list.
+            If supplied it enables XBMC to show a progress bar as the list of
+            items is being built.
+            
+            playlist (playlist object): If ``False`` (default), the item will 
+            be added to the list of entries to be displayed in this directory. 
+            If a playlist object is passed (see :meth:`get_playlist`) then 
+            the item will be added to the playlist instead
+    
+            item_type (str): The type of item to add (eg. 'music', 'video' or
+            'pictures')
+        '''
+        infolabels = addon.unescape_dict(infolabels)
+        if not resolved:
+            if not is_folder:
+                queries['play'] = 'True'
+            play = addon.build_plugin_url(queries)
+        else: 
+            play = resolved
+        listitem = xbmcgui.ListItem(infolabels['title'], iconImage=img, 
+                                    thumbnailImage=img)
+        listitem.setInfo(item_type, infolabels)
+        #listitem.setProperty('IsPlayable', 'true')   # this line was causing the play problem...
+        listitem.setProperty('fanart_image', fanart)
+        
+        if properties:
+            for prop in properties.items():
+                listitem.setProperty(prop[0], prop[1])
+
+        if contextmenu_items:
+            listitem.addContextMenuItems(contextmenu_items, replaceItems=context_replace)        
+        if playlist is not False:
+            addon.log_debug('adding item: %s - %s to playlist' % \
+                                                    (infolabels['title'], play))
+            playlist.add(play, listitem)
+        else:
+            addon.log_debug('adding item: %s - %s' % (infolabels['title'], play))
+            xbmcplugin.addDirectoryItem(addon.handle, play, listitem, 
+                                        isFolder=is_folder, 
+                                        totalItems=total_items)
+    ## end addon.common rip
 main()
