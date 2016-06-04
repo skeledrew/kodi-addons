@@ -1,4 +1,9 @@
 ------------------------
+Anime Watcher v0.3.0 (16-06-04)
+------------------------
+- Implemented Couchtuner index
+
+------------------------
 Anime Watcher v0.2.1 (16-06-02)
 ------------------------
 - Fixed videos not playing

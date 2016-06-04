@@ -85,9 +85,12 @@ class main:
                 
             if target_dir == 'aplus':
                 dirs().aplus()
+            
+            if target_dir == 'ctun':
+                dirs().ctun()
             return
         
-        if 'list' in addon.queries:
+        if 'list' in addon.queries and 'src' in addon.queries and addon.queries['src'] == 'aplus':
             # navigate dynamic site lists
             target_list = addon.queries['list']
             
@@ -125,11 +128,7 @@ class main:
                 
             if target_list == 'sources':
                 lists().aplus_sources_api(addon.queries['episodeid'], addon.queries['name'])
-                
-            if target_list == 'play':
-                # TODO: Implement other play options later
-                kodi_player.play(addon.queries['url'])
-                
+        
             if target_list == 'mplay':
                 # NB: untested code; not triggered thus far by any sources
                 links = addon.queries['urls'].split('|')
@@ -155,15 +154,26 @@ class main:
                 if not kodi_player.isPlayingVideo():
                     addon.show_ok_dialog(['One or more of the playlist items','Check links individually.'], 'VideoUrl: ' + str(play_list))
                 return True
-                    
-            addon.end_of_directory()
-            return
         
-        else:
-            addon.add_directory({'list': 'index'}, {'title': "Didn't get it..."})
-            #addon.add_directory({'list': 'index'}, {'title': target_list})
+        if 'list' in addon.queries and 'src' in addon.queries and addon.queries['src'] == 'ctun':
+            # navigate dynamic site lists
+            target_list = addon.queries['list']
+            
+            if target_list == 'index':
+                couchtuner().index()
+                
+            if target_list == 'episodes':
+                couchtuner().episodes(addon.queries)
+                
+            if target_list == 'sources':
+                sources().couchtuner(addon.queries['url'], addon.queries['name'])
         
-        test_area()
+        if 'list' in addon.queries and addon.queries['list'] == 'play':
+                # TODO: Implement other play options later
+                kodi_player.play(addon.queries['url'])
+                
+        addon.end_of_directory()
+        return
             
 class dirs:
     
@@ -174,13 +184,14 @@ class dirs:
         addon.end_of_directory()
         
     def lib(self):
-        addon.add_directory({'dir': 'aplus'}, {'title': 'Anime Plus'})
-        addon.add_directory({'dir': 'adub'}, {'title': 'Anime Dub'})
-        addon.add_directory({'dir': 'acrazy'}, {'title': 'Anime Crazy'})
-        addon.add_directory({'dir': 'ablog'}, {'title': 'Anime Blog'})
-        addon.add_directory({'dir': 'afreak'}, {'title': 'Anime Freak'})
-        addon.add_directory({'dir': 'afav'}, {'title': 'Anime Fav'})
-        addon.add_directory({'dir': 'cdub'}, {'title': 'Cartoon Dub'})
+        addon.add_directory({'dir': 'aplus'}, {'title': 'Anime'})
+        #addon.add_directory({'dir': 'adub'}, {'title': 'Anime Dub'})
+        #addon.add_directory({'dir': 'acrazy'}, {'title': 'Anime Crazy'})
+        #addon.add_directory({'dir': 'ablog'}, {'title': 'Anime Blog'})
+        #addon.add_directory({'dir': 'afreak'}, {'title': 'Anime Freak'})
+        #addon.add_directory({'dir': 'afav'}, {'title': 'Anime Fav'})
+        #addon.add_directory({'dir': 'cdub'}, {'title': 'Cartoon Dub'})
+        addon.add_directory({'dir': 'ctun'}, {'title': 'TV Shows'})
         addon.end_of_directory()
         
     def aplus(self):
@@ -194,7 +205,13 @@ class dirs:
         addon.add_directory({'src': 'aplus', 'list': 'recepi'}, {'title': 'Recent Releases'})
         addon.add_directory({'src': 'aplus', 'list': 'recent'}, {'title': 'Recently Added Series'})
         addon.end_of_directory()
-      
+    
+    def ctun(self):
+        addon.add_directory({'src': 'ctun', 'list': 'index'}, {'title': 'Index'})
+        addon.add_directory({'src': 'ctun', 'list': 'recepi'}, {'title': 'Recent Releases'})
+        addon.add_directory({'src': 'ctun', 'list': 'sched'}, {'title': 'TV Schedule'})
+        addon.end_of_directory()
+        
 class lists:
     
     def aplus_rec_epi_web(self):
@@ -251,7 +268,7 @@ class lists:
             
             try:
                 series_name = name.string.encode('UTF-8')
-                print 'Series name is ' + str(series_name)
+                #print 'Series name is ' + str(series_name)
                 
                 for series in series_collection:
                     
@@ -332,7 +349,7 @@ class lists:
                 if not key == 'genres':   # else: doesn't work for some reason
                     
                     for series in series_collection:
-                        print 'Current key is ' + key
+                        #print 'Current key is ' + key
                         #print series[key], filters[key], series['genres']
                         if (key in series and series[key] == filters[key]) or (key == 'genre' and filters[key] in series['genres']):
                             new_coll.append(series)
@@ -393,6 +410,174 @@ class lists:
                 addon.add_video_item({'list': 'mplay', 'urls': play_url[key]}, {'title': "-----Play all mirror " + str(key+1) + " parts ------"})
         addon.end_of_directory()
 
+class couchtuner:
+    
+    def find_base(self):
+        # start with couchtuner.city and find actual list URL from there (slight future proof in case something gets taken down)
+        dead = ['eu', 'la']
+        live = ['city', 'com', 'ag', 'ch']
+        live.sort()
+        
+        for tld in live:
+            url = 'http://www.couchtuner.' + tld
+            page = utils().get_page(url)
+            #print 'page = ' + str(page)
+            
+            if 'Couch Tuner TV Videos FREE:' in page.title.string:   # need a better way to validate the page
+                return url
+    
+    def get_series_info(self, url):
+        # TODO: change to pull from IMDB instead, and to store the info
+        page = get_page(url)
+        
+        try:
+            image = page.find_all('img')[1]['href']
+            
+        except:
+            image = ''
+        description = page.find_all('p')[0].string
+        episodes = page.find_all('div', class_='entry')[0].find_all('li')
+        epi_str = ''
+        
+        if 'Couchtuner. ' in description:
+            description = description.split('Couchtuner.')[1]   # TODO: Strip up to space as well
+        
+        return {'image': image, 'description': description}
+        
+    def index(self):
+        base_url = self.find_base()
+        series_collection = utils().get_page(base_url + '/tv-lists/').find_all('div', class_='entry')[0].find_all('li')
+        #print 'series_collection = ' + str(series_collection)
+        
+        for series in series_collection:
+            name = series.a.string.encode('UTF-8')
+            url = base_url + series.a['href']
+            addon.add_directory({'src': 'ctun', 'list': 'episodes', 'base': base_url, 'name': name, 'url': url}, {'title': name, 'plot': ''}, img='')
+    
+    def recent(self):
+        pass
+    
+    def sched(self):
+        pass
+    
+    def episodes(self, queries):
+        # TODO: Fix to handle bad formatting, unicode stuff (show 19-2 s
+        #print 'episodes arg: ' + str(queries)
+        page = utils().get_page(queries['url'])
+        episodes = page.find_all('div', class_='entry')[0].find_all('li')
+        
+        for itm in episodes:
+            name = ''
+            
+            try:
+                name = itm.a.contents[0]
+                
+            except:
+                continue
+            #print 'itm = ' + str(itm)
+            
+            try:
+                if not itm.string:
+                    name = name + itm.contents[0].contents[1]
+                    
+            except:
+                #print 'Unhandled error in episodes, name = ' + name.encode('UTF-8') + ', itm = ' + str(itm).encode('UTF-8')
+                pass
+            url = itm.a['href']
+            
+            if not '://' in url:
+                url = queries['base'] + url
+            addon.add_directory({'src': 'ctun', 'list': 'sources', 'base': queries['base'], 'name': name, 'url': url}, {'title': name.encode('UTF-8'), 'plot': ''}, img='')
+        
+        
+class utils:
+    
+    def get_page(self, url):
+        return BeautifulSoup(net.http_GET(url).content, 'html5lib')
+
+class sources:
+    supported = ['allmyvideos.net']
+    
+    def couchtuner(self, url, name):
+        page = utils().get_page(url)
+        iframes = page.find_all('div', class_='entry')[0].find_all('iframe')
+        urls = []
+        
+        if not iframes:
+            # NB: This can be made into a crawler if there are too many variations
+            url = page.find_all('div', class_='entry')[0].find_all('a')[0]['href']
+            page = utils().get_page(url)
+            iframes = page.find_all('div', class_='entry')[0].find_all('iframe')
+        
+        for iframe in iframes:
+            url = iframe['src']
+            
+            if url.split('/')[2] in self.supported:
+                urls.append(url)
+            
+            else:
+                print 'Unsupported source url: ' + url
+        self.find_vid_links(urls)
+        
+    def find_vid_links(self, urls):
+        # Takes a list of URLs and finds associated video URLs
+        vid_info_coll = []
+        
+        for url in urls:
+            
+            if 'allmyvideos.net' in url:
+                vid_info_coll = vid_info_coll + self.allmyvideos(url)
+        
+        for vid_info in vid_info_coll:
+            name = 'video'
+            
+            for itm in vid_info:
+                
+                if itm == 'url' or itm == 'image':
+                    continue
+                name = name + ' | ' + vid_info[itm]
+            add_video_item({'list': 'play', 'name': name, 'url': vid_info['url']}, {'title': name}, img = vid_info['image'])
+        
+    def allmyvideos(self, url):
+        page = utils().get_page(url)
+        scripts = page.find_all('div', id='player_code')[0].find_all('script')
+        data = ''
+        image = ''
+        for script in scripts:
+            
+            if script.string and 'jwplayer(\'flvplayer\').setup(' in script.string:
+                lines = script.string.split('\n')
+                flag = False
+                
+                for line in lines:
+                    
+                    if '"image"' in line:
+                        image = line.split(' : "')[1][:-2]   # get the image URL from the dict key/value
+                        
+                    if '"sources"' in line:
+                        flag = True
+                        line = '['
+                        
+                    if flag:
+                        data = data + line
+
+                        
+                    if flag and '],' in line:
+                        flag = False
+                        data = data[:-1]
+                        break
+        print 'json data = ' + data
+        data = json.loads(data)
+        
+        for idx in range(len(data)):
+            # put the image URL in each video info dict, change the key name from file to url for the video link, delete unnecessary key
+            data[idx]['image'] = image
+            data[idx]['url'] = data[idx]['file']
+            del data[idx]['file']
+            del data[idx]['default']
+        return data
+            
+    
 ## ripped from animego
 def CreateList(videoLink):
         liz = xbmcgui.ListItem('[B]PLAY VIDEO[/B]', thumbnailImage="")

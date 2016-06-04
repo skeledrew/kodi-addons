@@ -8,6 +8,8 @@ Requirements:
 ---- [Details, Add to Fav]
 -- Favorites
 -- Settings
+- Unified sources
+- Download
 
 Log:
 - [16-05-30]
@@ -48,6 +50,8 @@ Log:
 --- Something was wrong with how the video links are created; gotta look into that...
 -- Found that there is a small issue either in the addons.common module, or the way I'm using it
 --- Ripped and modified the relevant method from the module
+- [16-06-03]
+-- Added another source index
 
 Links:
 - TC FB thread - https://www.facebook.com/groups/319257644759106/permalink/1250058758345652/
